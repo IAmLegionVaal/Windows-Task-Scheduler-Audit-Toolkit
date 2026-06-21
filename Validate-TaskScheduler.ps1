@@ -1,0 +1,5 @@
+#requires -Version 5.1
+<# Created by Dewald Pretorius. Read-only Task Scheduler validator with stable exit codes. #>
+[CmdletBinding()]param([string]$OutputPath=(Join-Path ([Environment]::GetFolderPath('Desktop')) 'Task_Scheduler_Validation'))
+$ErrorActionPreference='Stop';New-Item -ItemType Directory -Path $OutputPath -Force|Out-Null;$s=Get-Date -Format yyyyMMdd_HHmmss
+try{$svc=Get-Service Schedule;$tasks=@(Get-ScheduledTask|Select-Object TaskName,TaskPath,State,@{n='RunAs';e={$_.Principal.UserId}},@{n='LogonType';e={$_.Principal.LogonType}});$disabled=@($tasks|Where-Object State -eq 'Disabled');$unknown=@($tasks|Where-Object{$_.RunAs -match '^S-1-5-' });[ordered]@{Generated=(Get-Date);Service=$svc;TaskCount=$tasks.Count;DisabledCount=$disabled.Count;UnknownSidCount=$unknown.Count;Disabled=$disabled;UnknownSid=$unknown}|ConvertTo-Json -Depth 6|Set-Content (Join-Path $OutputPath "validation_$s.json");if($svc.Status-ne'Running'-or$unknown.Count){exit 1};exit 0}catch{Write-Error $_;exit 5}
